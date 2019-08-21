@@ -7,12 +7,20 @@
 //
 
 import UIKit
+import XOZLocationManager
 
 class ViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        // Do any additional setup after loading the view, typically from a nib.
+        
+        //Use Case: you only whant to request authorization:
+        if XOZLocationManager.shared.isAuthorized() == false {
+            XOZLocationManager.shared.requestAutorization(authType: .whenInUse)
+        } else {
+            XOZLocationManager.shared.startUpdatingLocation()
+        }
+        
     }
 
 

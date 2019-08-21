@@ -1,0 +1,11 @@
+framework module XOZLocationManager {
+  umbrella header "XOZLocationManager.h"
+
+  export *
+  module * { export * }
+}
+
+module XOZLocationManager.Swift {
+    header "XOZLocationManager-Swift.h"
+    requires objc
+}
