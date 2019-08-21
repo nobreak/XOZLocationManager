@@ -93,7 +93,7 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
     }
     
 
-    var delegate: XOZLocationManagerDelegate?
+    public var delegate: XOZLocationManagerDelegate?
     
     public static let shared = XOZLocationManager()
     private let locationManager = CLLocationManager()

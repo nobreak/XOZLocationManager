@@ -15,6 +15,9 @@ class ViewController: UIViewController, XOZLocationManagerDelegate {
     override func viewDidLoad() {
         super.viewDidLoad()
         
+        // register as delegate
+        XOZLocationManager.shared.delegate = self;
+        
         //Use Case: you only whant to request authorization:
         if XOZLocationManager.shared.isAuthorized() == false {
             XOZLocationManager.shared.requestAutorization(authType: .whenInUse)
