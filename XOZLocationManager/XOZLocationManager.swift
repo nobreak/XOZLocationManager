@@ -108,7 +108,7 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
     // region monitoring
     //@TODO, couldbe that at start i'm inside a region and than no more an didEnter event comes?
     public var wayToDetermineNearestRegions : WayToDetermineNearestRegions = .significantLocationChanges
-    private var requiredAuthorizationForSignificantLocationChanges : Authorization = .whenInUse
+    private var requiredAuthorizationForSignificantLocationChanges : Authorization = .always
     private var iShouldMonitorForRegions = true
     var shouldMonitorForRegions : Bool
     {
