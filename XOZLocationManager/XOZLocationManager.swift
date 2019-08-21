@@ -39,12 +39,12 @@ public extension XOZLocationManagerDelegate {
  *
  * 1. Use Case: you only whant to request authorization:
  *
-   if XOZLocationManager.shared.isAuthorized() == false {
+    if XOZLocationManager.shared.isAuthorized() == false {
         XOZLocationManager.shared.requestAutorization(authType: .whenInUse)
-   } else {
-       // do something, e.g.:
-       XOZLocationManager.shared.startUpdatingLocation()
-   }
+    } else {
+        // do something, e.g.:
+        debugPrint("app is authorized")
+    }
  *
  * 2. Use Case: directly start updating Locations with e special authorization status
  *
@@ -52,11 +52,11 @@ public extension XOZLocationManagerDelegate {
  *
  * 3. add one region which should be monitored (only this is enough to start the region monitoring for all)
  *
-   let radius : CLLocationDistance = 200 // or locationManager.maximumRegionMonitoringDistance
-   let location : CLLocation(latitude: a.latitude, longitude: a.longitude)
-   let uniqueID : string = "An-Unique-String"
-   let region = CLCircularRegion(center: location.coordinate, radius: radius, identifier: uniqueID)
-   XOZLocationManager.shared.addRegionToMonitor()
+    let radius : CLLocationDistance = 200 // or locationManager.maximumRegionMonitoringDistance
+    let location : CLLocation = CLLocation(latitude: 52.502758, longitude: 13.503246)
+    let uniqueID : String = "An-Unique-String"
+    let region = CLCircularRegion(center: location.coordinate, radius: radius, identifier: uniqueID)
+    XOZLocationManager.shared.addRegionToMonitor(region:region)
  *
  *
  * 4. add more than one region which are should be monitored (only this is enough to start the region monitoring for all)
