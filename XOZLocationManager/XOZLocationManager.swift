@@ -12,15 +12,15 @@ import MapKit
 
 
 public protocol XOZLocationManagerDelegate {
-    func locationManagerDidUpdateLocations(_ manager: XOZLocationManager, didUpdateLocations locations: [CLLocation])
+    func xozLocationManager(_ manager: XOZLocationManager, didUpdateLocations locations: [CLLocation])
 }
 
 // optionals delegate methods
 public extension XOZLocationManagerDelegate {
     // region monitoring is optional
-    func locationManager(_ manager: XOZLocationManager, didEnterRegion region:CLRegion) {}
-    func locationManager(_ manager: XOZLocationManager, didExitRegion region:CLRegion) {}
-    func locationManager(_ manager: XOZLocationManager, monitoringDidFailedFor region:CLRegion, withError error: Error) {}
+    func xozLocationManager(_ manager: XOZLocationManager, didEnterRegion region:CLRegion) {}
+    func xozLocationManager(_ manager: XOZLocationManager, didExitRegion region:CLRegion) {}
+    func xozLocationManager(_ manager: XOZLocationManager, monitoringDidFailedFor region:CLRegion, withError error: Error) {}
 }
 
 
@@ -73,13 +73,13 @@ public extension XOZLocationManagerDelegate {
  *
  * You could inheriet from XOZLocationManagerDelegate and assign you as delegate, or register for event notification at NSNotification center like
  *
- * LocationManagerDidUpdateLocations
- * LocationManagerDidEnterRegion
- * LocationManagerDidExitRegion
- * LocationManagerMonitoringDidFailed
+ * XOZLocationManagerDidUpdateLocations
+ * XOZLocationManagerDidEnterRegion
+ * XOZLocationManagerDidExitRegion
+ * XOZLocationManagerMonitoringDidFailed
  *
  * e.g.:
- * NotificationCenter.default.addObserver(self, selector: #selector(didUpdateLocations(notification:)), name: .LocationManagerDidUpdateLocations, object: nil)
+ * NotificationCenter.default.addObserver(self, selector: #selector(didUpdateLocations(notification:)), name: .XOZLocationManagerDidUpdateLocations, object: nil)
  *
  * you should
     import MapKit
@@ -92,6 +92,12 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
         case always
     }
     
+    public enum WayToDetermineNearestRegions {
+        case none
+        case significantLocationChanges // default
+        case locationUpdates
+    }
+    
 
     public var delegate: XOZLocationManagerDelegate?
     
@@ -101,6 +107,8 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
     
     // region monitoring
     //@TODO, couldbe that at start i'm inside a region and than no more an didEnter event comes?
+    public var wayToDetermineNearestRegions : WayToDetermineNearestRegions = .significantLocationChanges
+    private var requiredAuthorizationForSignificantLocationChanges : Authorization = .whenInUse
     private var iShouldMonitorForRegions = true
     var shouldMonitorForRegions : Bool
     {
@@ -124,6 +132,14 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
     private override init() {
         super.init()
         self.locationManager.delegate = self
+        self.locationManager.pausesLocationUpdatesAutomatically = true
+        self.locationManager.activityType = .fitness
+        self.locationManager.allowsBackgroundLocationUpdates = true
+        if #available(iOS 11.0, *) {
+            self.locationManager.showsBackgroundLocationIndicator = false
+        } 
+        self.locationManager.distanceFilter = 10
+        
     }
     
     public func startUpdatingLocationFor(authType : XOZLocationManager.Authorization) {
@@ -157,7 +173,7 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
     
     // MARK: CLLocationManager Delegates
     
-    private func locationManager(_ manager: CLLocationManager, didChangeAuthorization status: CLAuthorizationStatus) {
+    public func locationManager(_ manager: CLLocationManager, didChangeAuthorization status: CLAuthorizationStatus) {
         debugPrint("new Location Manager auth state: \(status)")
         
         if status != .notDetermined {
@@ -165,14 +181,14 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
         }
     }
     
-    private func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+    public func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         
         if let lastLocation = locations.last {
             self.lastKnownLocation = lastLocation
             debugPrint("latest known location: \(lastLocation)")
             
             // scream it out to the world that we have a new location
-            self.delegate?.locationManagerDidUpdateLocations(self, didUpdateLocations: locations)
+            self.delegate?.xozLocationManager(self, didUpdateLocations: locations)
             let locationDataDict:[String: CLLocation] = ["lastLocation": lastLocation]
             NotificationCenter.default.post(name: .XOZLocationManagerDidUpdateLocations, object: nil, userInfo: locationDataDict)
             
@@ -181,8 +197,29 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
         }
     }
     
-    private func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+    public func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
         debugPrint("ERROR: didFailWithError (\(error.localizedDescription)")
+    }
+    
+    // MARK: significant location changes
+    
+    func startReceivingSignificantLocationChanges() {
+        if self.isAuthorized() == true {
+            if CLLocationManager.significantLocationChangeMonitoringAvailable() {
+                locationManager.startMonitoringSignificantLocationChanges()
+            } else {
+                //@TODO: error is not supported
+            }
+        } else {
+            self.requestAutorization(authType: self.requiredAuthorizationForSignificantLocationChanges)
+        }
+    }
+    
+    
+    public func stopReceivingSignificantLocationChanges() {
+        // be carefull, it will be started again when you add regions to monitor
+        // or you set self.wayToDetermineNearestRegions to .none
+        self.locationManager.stopMonitoringSignificantLocationChanges()
     }
     
     
@@ -217,6 +254,17 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
     {
         self.locationManager.requestLocation()
         // we start the update than in the delegate didUpdateLocations when we have a location
+        
+        // we need to start a way to get location changes updates to calculate the nearest regions
+        switch self.wayToDetermineNearestRegions {
+            case .significantLocationChanges:
+                self.startReceivingSignificantLocationChanges()
+            case .locationUpdates:
+                self.startUpdatingLocationFor(authType: self.requiredAuthorizationForSignificantLocationChanges)
+            case .none:
+                // nothing todo
+                print("Attention: Region monitoring is enabled, but without determine neares regions !")
+        }
     }
 
     
@@ -240,6 +288,7 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
                     var index = 0
                     for region in regionsToMonitor {
                         self.startMonitorRegion(region: region)
+                        debugPrint("added region to monitor: \(region)")
                         index = +1
                         if index == self.maximumOfRegionsToMonitor-1 {
                             break;
@@ -274,6 +323,7 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
     {
         for region in locationManager.monitoredRegions{
             self.stopMonitoringRegion(region: region)
+            debugPrint("XOZLocationManager: stoped monitoring for region \(region)")
         }
     }
 
@@ -282,7 +332,7 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
         debugPrint("didEnterRegion \(region.debugDescription )")
         
         // scream it out to the world that we entered a region
-        self.delegate?.locationManager(self, didEnterRegion: region)
+        self.delegate?.xozLocationManager(self, didEnterRegion: region)
         let regionDataDict:[String: CLRegion] = ["region": region]
         NotificationCenter.default.post(name: .XOZLocationManagerDidEnterRegion, object: nil, userInfo: regionDataDict)
     }
@@ -295,7 +345,7 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
         debugPrint("didExitRegion \(region.debugDescription )")
         
         // scream it out to the world that we leaved a region
-        self.delegate?.locationManager(self, didExitRegion: region)
+        self.delegate?.xozLocationManager(self, didExitRegion: region)
         let regionDataDict:[String: CLRegion] = ["region": region]
         NotificationCenter.default.post(name: .XOZLocationManagerDidExitRegion, object: nil, userInfo: regionDataDict)
 
@@ -314,7 +364,7 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
         debugPrint("ERROR: monitoringDidFailFor \(region.debugDescription ) (\(error.localizedDescription)")
         
         if let tRegion = region {
-            self.delegate?.locationManager(self, monitoringDidFailedFor: tRegion, withError: error)
+            self.delegate?.xozLocationManager(self, monitoringDidFailedFor: tRegion, withError: error)
             var regionDataDict:Dictionary<String,Any> = [:]
             regionDataDict["region"] = tRegion
             regionDataDict["error"] = error
@@ -325,6 +375,7 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
     
 
 }
+
 
 
 public extension Notification.Name {

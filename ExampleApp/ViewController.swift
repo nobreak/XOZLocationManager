@@ -28,7 +28,7 @@ class ViewController: UIViewController, XOZLocationManagerDelegate {
         
         
         // Use Case: directly start updating Locations with e special authorization status
-        XOZLocationManager.shared.startUpdatingLocationFor(authType: .whenInUse)
+        //XOZLocationManager.shared.startUpdatingLocationFor(authType: .whenInUse)
         
         // Use Case: add one region which should be monitored (only this is enough to start the region monitoring for all)
         
@@ -51,19 +51,19 @@ class ViewController: UIViewController, XOZLocationManagerDelegate {
     }
     
     // delegates
-    func locationManagerDidUpdateLocations(_ manager: XOZLocationManager, didUpdateLocations locations: [CLLocation]){
+    func xozLocationManager(_ manager: XOZLocationManager, didUpdateLocations locations: [CLLocation]){
         
     }
     
-    func locationManager(_ manager: XOZLocationManager, didEnterRegion region:CLRegion) {
+    func xozLocationManager(_ manager: XOZLocationManager, didEnterRegion region:CLRegion) {
         debugPrint("didEnterRegion \(region.debugDescription )")
     }
     
-    func locationManager(_ manager: XOZLocationManager, didExitRegion region:CLRegion) {
+    func xozLocationManager(_ manager: XOZLocationManager, didExitRegion region:CLRegion) {
         debugPrint("didExitRegion \(region.debugDescription )")
     }
     
-    func locationManager(_ manager: XOZLocationManager, monitoringDidFailedFor region:CLRegion, withError error: Error) {
+    func xozLocationManager(_ manager: XOZLocationManager, monitoringDidFailedFor region:CLRegion, withError error: Error) {
         debugPrint("ERROR: didFailWithError (\(error.localizedDescription)")
     }
 
