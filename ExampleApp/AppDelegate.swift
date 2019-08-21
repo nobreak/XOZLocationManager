@@ -3,7 +3,7 @@
 //  ExampleApp
 //
 //  Created by Philipp Homann on 21.08.19.
-//  Copyright © 2019 exozet. All rights reserved.
+//  Copyright © 2019 wwwPage.de UG (haftungsbeschränkt). All rights reserved.
 //
 
 import UIKit
