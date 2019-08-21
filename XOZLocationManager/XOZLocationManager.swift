@@ -174,7 +174,7 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
             // scream it out to the world that we have a new location
             self.delegate?.locationManagerDidUpdateLocations(self, didUpdateLocations: locations)
             let locationDataDict:[String: CLLocation] = ["lastLocation": lastLocation]
-            NotificationCenter.default.post(name: .LocationManagerDidUpdateLocations, object: nil, userInfo: locationDataDict)
+            NotificationCenter.default.post(name: .XOZLocationManagerDidUpdateLocations, object: nil, userInfo: locationDataDict)
             
             // update regions monitoring if needed
             updateRegionsToMonitor()
@@ -284,7 +284,7 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
         // scream it out to the world that we entered a region
         self.delegate?.locationManager(self, didEnterRegion: region)
         let regionDataDict:[String: CLRegion] = ["region": region]
-        NotificationCenter.default.post(name: .LocationManagerDidEnterRegion, object: nil, userInfo: regionDataDict)
+        NotificationCenter.default.post(name: .XOZLocationManagerDidEnterRegion, object: nil, userInfo: regionDataDict)
     }
     
     private func locationManager(_ manager: CLLocationManager, didDetermineState state: CLRegionState, for region: CLRegion) {
@@ -297,7 +297,7 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
         // scream it out to the world that we leaved a region
         self.delegate?.locationManager(self, didExitRegion: region)
         let regionDataDict:[String: CLRegion] = ["region": region]
-        NotificationCenter.default.post(name: .LocationManagerDidExitRegion, object: nil, userInfo: regionDataDict)
+        NotificationCenter.default.post(name: .XOZLocationManagerDidExitRegion, object: nil, userInfo: regionDataDict)
 
     }
     
@@ -319,7 +319,7 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
             regionDataDict["region"] = tRegion
             regionDataDict["error"] = error
 
-            NotificationCenter.default.post(name: .LocationManagerMonitoringDidFailed, object: nil, userInfo: regionDataDict)
+            NotificationCenter.default.post(name: .XOZLocationManagerMonitoringDidFailed, object: nil, userInfo: regionDataDict)
         }
     }
     
@@ -327,10 +327,10 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
 }
 
 
-extension Notification.Name {
-    static let LocationManagerDidUpdateLocations = Notification.Name("LocationManagerDidUpdateLocations")
-    static let LocationManagerDidEnterRegion = Notification.Name("LocationManagerDidEnterRegion")
-    static let LocationManagerDidExitRegion = Notification.Name("LocationManagerDidExitRegion")
-    static let LocationManagerMonitoringDidFailed = Notification.Name("LocationManagerMonitoringDidFailed")
+public extension Notification.Name {
+    static let XOZLocationManagerDidUpdateLocations = Notification.Name("XOZLocationManagerDidUpdateLocations")
+    static let XOZLocationManagerDidEnterRegion = Notification.Name("XOZLocationManagerDidEnterRegion")
+    static let XOZLocationManagerDidExitRegion = Notification.Name("XOZLocationManagerDidExitRegion")
+    static let XOZLocationManagerMonitoringDidFailed = Notification.Name("XOZLocationManagerMonitoringDidFailed")
 
 }
