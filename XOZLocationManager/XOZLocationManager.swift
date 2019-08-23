@@ -13,6 +13,10 @@ import MapKit
 
 public protocol XOZLocationManagerDelegate {
     func xozLocationManager(_ manager: XOZLocationManager, didUpdateLocations locations: [CLLocation])
+    func xozLocationManager(_ manager: XOZLocationManager, didEnterRegion region:CLRegion)
+    func xozLocationManager(_ manager: XOZLocationManager, didExitRegion region:CLRegion)
+    func xozLocationManager(_ manager: XOZLocationManager, monitoringDidFailedFor region:CLRegion, withError error: Error)
+
 }
 
 // optionals delegate methods
