@@ -110,7 +110,10 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
     private var lastKnownLocation : CLLocation?
     
     private var logging  = true
-    private var isUpdatingLocationsActive = false
+    private var wantsToStartUpdateLocation = false
+    private var isUpdatingLocationActive = false
+    private var wantsToStartSignificantLocationChanges = false
+    private var isSignificantLocationChangesActive = false
     
     // region monitoring
     //@TODO, couldbe that at start i'm inside a region and than no more an didEnter event comes?
@@ -150,7 +153,7 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
     }
     
     public func startUpdatingLocationFor(authType : XOZLocationManager.Authorization) {
-        self.isUpdatingLocationsActive = true
+        self.wantsToStartUpdateLocation = true
         if self.isAuthorized() == true {
             self.startUpdatingLocation()
         } else {
@@ -160,7 +163,7 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
     }
     
     public func stopUpdatingLocation() {
-        self.isUpdatingLocationsActive = false
+        self.isUpdatingLocationActive = false
         self.locationManager.stopUpdatingLocation()
     }
     
@@ -181,6 +184,8 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
     }
     
     func startUpdatingLocation() {
+        self.isUpdatingLocationActive = true
+        self.wantsToStartUpdateLocation = false
         locationManager.startUpdatingLocation()
     }
     
@@ -189,9 +194,13 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
     public func locationManager(_ manager: CLLocationManager, didChangeAuthorization status: CLAuthorizationStatus) {
         log("new Location Manager auth state: \(status)")
         
-        if status != .notDetermined  && self.isUpdatingLocationsActive == true {
-            
-            self.startUpdatingLocation()
+        if status != .notDetermined {
+            if self.wantsToStartUpdateLocation == true {
+                self.startUpdatingLocation()
+            }
+            else if self.wantsToStartSignificantLocationChanges == true {
+                self.startReceivingSignificantLocationChanges()
+            }
         }
     }
     
@@ -207,7 +216,7 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
             NotificationCenter.default.post(name: .XOZLocationManagerDidUpdateLocations, object: nil, userInfo: locationDataDict)
             
             // update regions monitoring if needed
-            self.tryToUpdateRegionsToMonitor()
+            self.updateRegionsToMonitor()
         }
     }
     
@@ -218,8 +227,10 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
     // MARK: significant location changes
     
     func startReceivingSignificantLocationChanges() {
-        if self.isAuthorized() == true {
+        if self.isAuthorized() == true && self.isSignificantLocationChangesActive == false {
             if CLLocationManager.significantLocationChangeMonitoringAvailable() {
+                self.isSignificantLocationChangesActive = true
+                self.wantsToStartSignificantLocationChanges = false
                 locationManager.startMonitoringSignificantLocationChanges()
             } else {
                 //@TODO: error is not supported
@@ -234,6 +245,7 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
         // be carefull, it will be started again when you add regions to monitor
         // or you set self.wayToDetermineNearestRegions to .none
         self.locationManager.stopMonitoringSignificantLocationChanges()
+        self.isSignificantLocationChangesActive = false
     }
     
     
@@ -259,6 +271,7 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
     public func removeRegionToMonitor(region: CLCircularRegion) {
         if let index = self.allRegionsToMonitor?.index(of: region) {
            self.allRegionsToMonitor?.remove(at: index)
+            // @TODO: stop significant location changes or updating location when no mor is needed
         }
         self.tryToUpdateRegionsToMonitor()
     }
@@ -352,7 +365,7 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
     }
     
     public func locationManager(_ manager: CLLocationManager, didDetermineState state: CLRegionState, for region: CLRegion) {
-        log("didDetermineState for \(region.debugDescription ) new state \(state)")
+        log("didDetermineState for \(region.debugDescription ) new state \(state.rawValue)")
     }
     
     public func locationManager(_ manager: CLLocationManager, didExitRegion region: CLRegion) {
