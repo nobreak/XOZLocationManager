@@ -159,6 +159,11 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
         }
     }
     
+    public func stopUpdatingLocation() {
+        self.isUpdatingLocationsActive = false
+        self.locationManager.stopUpdatingLocation()
+    }
+    
     public func isAuthorized() -> Bool {
         var result = false
         if CLLocationManager.authorizationStatus() != .notDetermined {
