@@ -91,33 +91,21 @@ public extension XOZLocationManagerDelegate {
  **/
 public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
 
-    public enum Authorization {
-        case whenInUse
-        case always
-    }
-    
-    public enum WayToDetermineNearestRegions {
-        case none
-        case significantLocationChanges // default
-        case locationUpdates
-    }
-    
-
-    public var delegate: XOZLocationManagerDelegate?
-    
     public static let shared = XOZLocationManager()
     public let locationManager = CLLocationManager()
     private var lastKnownLocation : CLLocation?
+    public var delegate: XOZLocationManagerDelegate?
+
+    // logging
+    private var logLevel : LogLevel  = .none // define loglevel, when activ it will only log in debug mode
     
-    private var logging  = true
-    private var wantsToStartUpdateLocation = false
-    private var isUpdatingLocationActive = false
-    private var wantsToStartSignificantLocationChanges = false
-    private var isSignificantLocationChangesActive = false
     
     // region monitoring
     //@TODO, couldbe that at start i'm inside a region and than no more an didEnter event comes?
     public var wayToDetermineNearestRegions : WayToDetermineNearestRegions = .significantLocationChanges
+    public var allRegionsToMonitor : [CLCircularRegion]? = []
+    public let maximumOfRegionsToMonitor = 20
+    
     private var requiredAuthorizationForSignificantLocationChanges : Authorization = .always
     private var iShouldMonitorForRegions = true
     var shouldMonitorForRegions : Bool
@@ -136,9 +124,31 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
         }
     }
     
-    public var allRegionsToMonitor : [CLCircularRegion]? = []
-    let maximumOfRegionsToMonitor = 20
+    // intenal states
+    private var wantsToStartUpdateLocation = false
+    private var isUpdatingLocationActive = false
+    private var wantsToStartSignificantLocationChanges = false
+    private var isSignificantLocationChangesActive = false
+
+    // enums
+    public enum Authorization {
+        case whenInUse
+        case always
+    }
     
+    public enum WayToDetermineNearestRegions {
+        case none
+        case significantLocationChanges // default
+        case locationUpdates
+    }
+    
+    public enum LogLevel {
+        case none
+        case verbose
+    }
+
+
+    // constructor
     private override init() {
         super.init()
         self.locationManager.delegate = self
