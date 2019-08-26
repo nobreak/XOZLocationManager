@@ -106,7 +106,7 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
     public var delegate: XOZLocationManagerDelegate?
     
     public static let shared = XOZLocationManager()
-    private let locationManager = CLLocationManager()
+    public let locationManager = CLLocationManager()
     private var lastKnownLocation : CLLocation?
     
     // region monitoring
@@ -130,7 +130,7 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
         }
     }
     
-    var allRegionsToMonitor : [CLCircularRegion]? = []
+    public var allRegionsToMonitor : [CLCircularRegion]? = []
     let maximumOfRegionsToMonitor = 20
     
     private override init() {
@@ -332,7 +332,7 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
     }
 
     
-    private func locationManager(_ manager: CLLocationManager, didEnterRegion region:CLRegion) {
+    public func locationManager(_ manager: CLLocationManager, didEnterRegion region:CLRegion) {
         debugPrint("didEnterRegion \(region.debugDescription )")
         
         // scream it out to the world that we entered a region
@@ -341,11 +341,11 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
         NotificationCenter.default.post(name: .XOZLocationManagerDidEnterRegion, object: nil, userInfo: regionDataDict)
     }
     
-    private func locationManager(_ manager: CLLocationManager, didDetermineState state: CLRegionState, for region: CLRegion) {
+    public func locationManager(_ manager: CLLocationManager, didDetermineState state: CLRegionState, for region: CLRegion) {
         debugPrint("didDetermineState for \(region.debugDescription ) new state \(state)")
     }
     
-    private func locationManager(_ manager: CLLocationManager, didExitRegion region: CLRegion) {
+    public func locationManager(_ manager: CLLocationManager, didExitRegion region: CLRegion) {
         debugPrint("didExitRegion \(region.debugDescription )")
         
         // scream it out to the world that we leaved a region
@@ -355,7 +355,7 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
 
     }
     
-    private func locationManager(_ manager: CLLocationManager, didStartMonitoringFor region: CLRegion) {
+    public func locationManager(_ manager: CLLocationManager, didStartMonitoringFor region: CLRegion) {
         debugPrint("didStartMonitoringFor \(region.debugDescription )")
         
         #if DEBUG
@@ -364,7 +364,7 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
         #endif
     }
     
-    private func locationManager(_ manager: CLLocationManager, monitoringDidFailFor region: CLRegion?, withError error: Error) {
+    public func locationManager(_ manager: CLLocationManager, monitoringDidFailFor region: CLRegion?, withError error: Error) {
         debugPrint("ERROR: monitoringDidFailFor \(region.debugDescription ) (\(error.localizedDescription)")
         
         if let tRegion = region {
