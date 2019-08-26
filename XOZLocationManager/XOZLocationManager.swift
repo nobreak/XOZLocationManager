@@ -93,11 +93,10 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
 
     public static let shared = XOZLocationManager()
     public let locationManager = CLLocationManager()
-    private var lastKnownLocation : CLLocation?
     public var delegate: XOZLocationManagerDelegate?
 
     // logging
-    private var logLevel : LogLevel  = .none // define loglevel, when activ it will only log in debug mode
+    public var logLevel : LogLevel  = .none // define loglevel, when activ it will only log in debug mode
     
     
     // region monitoring
@@ -125,6 +124,7 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
     }
     
     // intenal states
+    private var lastKnownLocation : CLLocation?
     private var wantsToStartUpdateLocation = false
     private var isUpdatingLocationActive = false
     private var wantsToStartSignificantLocationChanges = false
@@ -392,7 +392,7 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
         log("didStartMonitoringFor \(region.debugDescription )")
         
         #if DEBUG
-        if self.logging == true {
+        if self.logLevel == .verbose {
             // would be intresting to know how the current state ie
             self.locationManager.requestState(for: region)
         }
@@ -414,7 +414,7 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
     
     private func log(_ message:String)
     {
-        if self.logging == true {
+        if self.logLevel == .verbose {
             debugPrint(message)
         }
     }
