@@ -305,7 +305,7 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
     
     private func startMonitorRegion(region : CLRegion ) {
         // Make sure the app is authorized.
-        if CLLocationManager.authorizationStatus() == .authorizedWhenInUse {
+        if CLLocationManager.authorizationStatus() == .authorizedWhenInUse  || CLLocationManager.authorizationStatus() == .authorizedAlways{
             // Make sure region monitoring is supported.
             if CLLocationManager.isMonitoringAvailable(for: CLCircularRegion.self) {
                 // Register the region.
