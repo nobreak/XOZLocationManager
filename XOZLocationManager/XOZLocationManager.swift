@@ -109,6 +109,9 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
     public let locationManager = CLLocationManager()
     private var lastKnownLocation : CLLocation?
     
+    private var logging  = true
+    private var isUpdatingLocationsActive = false
+    
     // region monitoring
     //@TODO, couldbe that at start i'm inside a region and than no more an didEnter event comes?
     public var wayToDetermineNearestRegions : WayToDetermineNearestRegions = .significantLocationChanges
@@ -147,6 +150,7 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
     }
     
     public func startUpdatingLocationFor(authType : XOZLocationManager.Authorization) {
+        self.isUpdatingLocationsActive = true
         if self.isAuthorized() == true {
             self.startUpdatingLocation()
         } else {
@@ -178,9 +182,10 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
     // MARK: CLLocationManager Delegates
     
     public func locationManager(_ manager: CLLocationManager, didChangeAuthorization status: CLAuthorizationStatus) {
-        debugPrint("new Location Manager auth state: \(status)")
+        log("new Location Manager auth state: \(status)")
         
-        if status != .notDetermined {
+        if status != .notDetermined  && self.isUpdatingLocationsActive == true {
+            
             self.startUpdatingLocation()
         }
     }
@@ -189,7 +194,7 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
         
         if let lastLocation = locations.last {
             self.lastKnownLocation = lastLocation
-            debugPrint("latest known location: \(lastLocation)")
+            log("latest known location: \(lastLocation)")
             
             // scream it out to the world that we have a new location
             self.delegate?.xozLocationManager(self, didUpdateLocations: locations)
@@ -197,12 +202,12 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
             NotificationCenter.default.post(name: .XOZLocationManagerDidUpdateLocations, object: nil, userInfo: locationDataDict)
             
             // update regions monitoring if needed
-            updateRegionsToMonitor()
+            self.tryToUpdateRegionsToMonitor()
         }
     }
     
     public func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        debugPrint("ERROR: didFailWithError (\(error.localizedDescription)")
+        log("ERROR: didFailWithError (\(error.localizedDescription)")
     }
     
     // MARK: significant location changes
@@ -292,7 +297,7 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
                     var index = 0
                     for region in regionsToMonitor {
                         self.startMonitorRegion(region: region)
-                        debugPrint("added region to monitor: \(region)")
+                        log("added region to monitor: \(region)")
                         index = +1
                         if index == self.maximumOfRegionsToMonitor-1 {
                             break;
@@ -327,13 +332,13 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
     {
         for region in locationManager.monitoredRegions{
             self.stopMonitoringRegion(region: region)
-            debugPrint("XOZLocationManager: stoped monitoring for region \(region)")
+            log("XOZLocationManager: stoped monitoring for region \(region)")
         }
     }
 
     
     public func locationManager(_ manager: CLLocationManager, didEnterRegion region:CLRegion) {
-        debugPrint("didEnterRegion \(region.debugDescription )")
+        log("didEnterRegion \(region.debugDescription )")
         
         // scream it out to the world that we entered a region
         self.delegate?.xozLocationManager(self, didEnterRegion: region)
@@ -342,11 +347,11 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
     }
     
     public func locationManager(_ manager: CLLocationManager, didDetermineState state: CLRegionState, for region: CLRegion) {
-        debugPrint("didDetermineState for \(region.debugDescription ) new state \(state)")
+        log("didDetermineState for \(region.debugDescription ) new state \(state)")
     }
     
     public func locationManager(_ manager: CLLocationManager, didExitRegion region: CLRegion) {
-        debugPrint("didExitRegion \(region.debugDescription )")
+        log("didExitRegion \(region.debugDescription )")
         
         // scream it out to the world that we leaved a region
         self.delegate?.xozLocationManager(self, didExitRegion: region)
@@ -356,16 +361,18 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
     }
     
     public func locationManager(_ manager: CLLocationManager, didStartMonitoringFor region: CLRegion) {
-        debugPrint("didStartMonitoringFor \(region.debugDescription )")
+        log("didStartMonitoringFor \(region.debugDescription )")
         
         #if DEBUG
+        if self.logging == true {
             // would be intresting to know how the current state ie
             self.locationManager.requestState(for: region)
+        }
         #endif
     }
     
     public func locationManager(_ manager: CLLocationManager, monitoringDidFailFor region: CLRegion?, withError error: Error) {
-        debugPrint("ERROR: monitoringDidFailFor \(region.debugDescription ) (\(error.localizedDescription)")
+        log("ERROR: monitoringDidFailFor \(region.debugDescription ) (\(error.localizedDescription)")
         
         if let tRegion = region {
             self.delegate?.xozLocationManager(self, monitoringDidFailedFor: tRegion, withError: error)
@@ -374,6 +381,13 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
             regionDataDict["error"] = error
 
             NotificationCenter.default.post(name: .XOZLocationManagerMonitoringDidFailed, object: nil, userInfo: regionDataDict)
+        }
+    }
+    
+    private func log(_ message:String)
+    {
+        if self.logging == true {
+            debugPrint(message)
         }
     }
     
