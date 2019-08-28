@@ -153,12 +153,16 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
         super.init()
         self.locationManager.delegate = self
         self.locationManager.pausesLocationUpdatesAutomatically = true
-        self.locationManager.activityType = .fitness
+        
         self.locationManager.allowsBackgroundLocationUpdates = true
         if #available(iOS 11.0, *) {
             self.locationManager.showsBackgroundLocationIndicator = false
-        } 
+        }
+        
+        // location updates (not significan location changes)
+        self.locationManager.activityType = .fitness
         self.locationManager.distanceFilter = 10
+        self.locationManager.desiredAccuracy = kCLLocationAccuracyNearestTenMeters
         
     }
     
@@ -289,7 +293,14 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
     // this request to get the latest known location, it end's in didUpdateLocations, which calls updateRegionsToMonitor()
     private func tryToUpdateRegionsToMonitor()
     {
-        self.locationManager.requestLocation()
+        // we want to get the actually location if possible, else we are using the last known one
+        var lastKnownLocationArr = [CLLocation]()
+        if let lastKnownLocation = self.lastKnownLocation {
+            lastKnownLocationArr.append(lastKnownLocation)
+            locationManager(self.locationManager, didUpdateLocations: lastKnownLocationArr)
+        } else {
+            self.locationManager.requestLocation()
+        }
         // we start the update than in the delegate didUpdateLocations when we have a location
         
         // we need to start a way to get location changes updates to calculate the nearest regions
