@@ -263,6 +263,12 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
     }
     
     
+    public func getLastKnownLocation() -> CLLocation? {
+        return self.lastKnownLocation
+    }
+
+    
+    
     
     // MARK: region monitoring
     
@@ -289,6 +295,7 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
         }
         self.tryToUpdateRegionsToMonitor()
     }
+    
     
     // this request to get the latest known location, it end's in didUpdateLocations, which calls updateRegionsToMonitor()
     private func tryToUpdateRegionsToMonitor()
