@@ -36,7 +36,7 @@ public extension XOZLocationManagerDelegate {
  * 1. Use it to check and or request for authorization status
  * 2. Use it to request device position or let you inform about updates
  * 3. use it to activate region monitoring for 1..n regions. iOS normaly has a maximum of 20 regions, this class manages for you more then 20. It automatical registers the neares regions based on the position
- * 4. @TODO: implement Significant location changes, to let update regions to monitor, also based on events of this
+ * 4. Using Significant Location Changes
  *
  * How to USE:
  * ==========
@@ -218,6 +218,10 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
         }
     }
     
+    /*:
+     This is called if startUpdatingLocation() or startReceivingSignificantLocationChanges() was called
+     an we received a new location update.
+     */
     public func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         
         if let lastLocation = locations.last {
@@ -273,7 +277,7 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
     // MARK: region monitoring
     
     
-    // add an array of regions which you want to monito
+    // add an array of regions which you want to monitor
     // if shouldMonitorForRegions is true, this region will be registered at OS, else only stored for later use
     public func addRegionsToMonitor(regions: [CLCircularRegion]) {
         self.allRegionsToMonitor?.append(contentsOf: regions)
@@ -291,7 +295,7 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
     public func removeRegionToMonitor(region: CLCircularRegion) {
         if let index = self.allRegionsToMonitor?.firstIndex(of: region) {
            self.allRegionsToMonitor?.remove(at: index)
-            // @TODO: stop significant location changes or updating location when no mor is needed
+            // @TODO: stop significant location changes or updating locations when no more is needed
         }
         self.tryToUpdateRegionsToMonitor()
     }
