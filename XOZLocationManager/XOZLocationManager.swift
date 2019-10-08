@@ -289,7 +289,7 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
     
     // removes a special region from the array which holds all regions which are to monitor
     public func removeRegionToMonitor(region: CLCircularRegion) {
-        if let index = self.allRegionsToMonitor?.index(of: region) {
+        if let index = self.allRegionsToMonitor?.firstIndex(of: region) {
            self.allRegionsToMonitor?.remove(at: index)
             // @TODO: stop significant location changes or updating location when no mor is needed
         }
