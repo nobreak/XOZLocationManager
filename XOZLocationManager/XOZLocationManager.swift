@@ -91,10 +91,23 @@ public extension XOZLocationManagerDelegate {
  **/
 public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
 
+    /// use XOZLocationManager as singleton
     public static let shared = XOZLocationManager()
     public let locationManager = CLLocationManager()
+    
+    // register as delegate if needed
     public var delegate: XOZLocationManagerDelegate?
 
+    // some configuration variables to get location updates (not for significant location changes or region monitoring)
+    public static var activityType: CLActivityType = .fitness
+    public static var distanceFilter: CLLocationDistance = 10
+    public static var desiredAccuracy:CLLocationAccuracy = kCLLocationAccuracyNearestTenMeters
+    
+    public static var pausesLocationUpdatesAutomatically: Bool = true
+    public static var allowsBackgroundLocationUpdates: Bool = true
+    @available(iOS 11.0, *)
+    public static var showsBackgroundLocationIndicator: Bool = false
+    
     // logging
     public var logLevel : LogLevel  = .none // define loglevel, when activ it will only log in debug mode
     
@@ -105,6 +118,8 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
     public var allRegionsToMonitor : [CLCircularRegion]? = []
     public let maximumOfRegionsToMonitor = 20
     
+    
+    // intenal states
     private var requiredAuthorizationForSignificantLocationChanges : Authorization = .always
     private var iShouldMonitorForRegions = true
     var shouldMonitorForRegions : Bool
@@ -123,7 +138,7 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
         }
     }
     
-    // intenal states
+    
     private var lastKnownLocation : CLLocation?
     private var wantsToStartUpdateLocation = false
     private var isUpdatingLocationActive = false
@@ -152,17 +167,17 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
     private override init() {
         super.init()
         self.locationManager.delegate = self
-        self.locationManager.pausesLocationUpdatesAutomatically = true
+        self.locationManager.pausesLocationUpdatesAutomatically = XOZLocationManager.pausesLocationUpdatesAutomatically
         
-        self.locationManager.allowsBackgroundLocationUpdates = true
+        self.locationManager.allowsBackgroundLocationUpdates = XOZLocationManager.allowsBackgroundLocationUpdates
         if #available(iOS 11.0, *) {
-            self.locationManager.showsBackgroundLocationIndicator = false
+            self.locationManager.showsBackgroundLocationIndicator = XOZLocationManager.showsBackgroundLocationIndicator
         }
         
         // location updates (not significan location changes)
-        self.locationManager.activityType = .fitness
-        self.locationManager.distanceFilter = 10
-        self.locationManager.desiredAccuracy = kCLLocationAccuracyNearestTenMeters
+        self.locationManager.activityType = XOZLocationManager.activityType
+        self.locationManager.distanceFilter = XOZLocationManager.distanceFilter
+        self.locationManager.desiredAccuracy = XOZLocationManager.desiredAccuracy
         
     }
     
