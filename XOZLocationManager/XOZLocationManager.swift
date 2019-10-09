@@ -468,6 +468,7 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
                 regionInfo.state = state
                 // @TODO: add detection for exit region
                 // @TODO: remove from dict when exited
+                // @TODO add also for delegates
                 
                 self.delegate?.xozLocationManager(self, didEnterRegion: region)
                 var regionDataDict:Dictionary<String,Any> = [:]
