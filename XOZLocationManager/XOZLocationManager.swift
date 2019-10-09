@@ -108,16 +108,16 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
     @available(iOS 11.0, *)
     public static var showsBackgroundLocationIndicator: Bool = false
     
-    // logging
-    public var logLevel : LogLevel  = .none // define loglevel, when activ it will only log in debug mode
-    
     
     // region monitoring
     //@TODO, couldbe that at start i'm inside a region and than no more an didEnter event comes?
     public var wayToDetermineNearestRegions : WayToDetermineNearestRegions = .significantLocationChanges
+    public var wayToMonitorRegions : WayToMonitorRegions = .iOSRegionsMonitoring
     public var allRegionsToMonitor : [CLCircularRegion]? = []
     public let maximumOfRegionsToMonitor = 20
-    
+
+    // logging
+    public var logLevel : LogLevel  = .none // define loglevel, when active it will only log in debug mode
     
     // intenal states
     private var requiredAuthorizationForSignificantLocationChanges : Authorization = .always
@@ -131,7 +131,7 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
             self.iShouldMonitorForRegions = newValue
             
             if newValue == true {
-                self.tryToUpdateRegionsToMonitor()
+                self.startRegionMonitoring()
             } else {
                 self.stopMonitoringAllRegions()
             }
@@ -144,6 +144,10 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
     private var isUpdatingLocationActive = false
     private var wantsToStartSignificantLocationChanges = false
     private var isSignificantLocationChangesActive = false
+    
+    /// if WayToMonitorRegions.locationUpdates is active and we got a location update we try find out are we inside or not
+    /// for that we need to save to latest/current state and the speed and ourse information
+    private var dictRegionsCurrentlyTryToDetermineState:Dictionary<String,RegionInfo> = [:]
 
     // enums
     public enum Authorization {
@@ -151,12 +155,17 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
         case always
     }
     
-    public enum WayToDetermineNearestRegions {
-        case none
-        case significantLocationChanges // default
-        case locationUpdates
+    public enum WayToMonitorRegions {
+        case iOSRegionsMonitoring // only 20 regions at same time, this class always regiters the nearest ones (see WayToDetermineNearestRegions)
+        case locationUpdates // most accurcy based on location update configuration, you also will get course and speed information, but needs more battery power
     }
     
+    public enum WayToDetermineNearestRegions {
+        case none // there is no logic active to find out the nearest regions based on current location
+        case significantLocationChanges // default, save battery power (events will be triggerd acery 500m or 5 min)
+        case locationUpdates // most accurcy based on location update configuration, but needs more battery power
+    }
+
     public enum LogLevel {
         case none
         case verbose
@@ -248,8 +257,34 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
             let locationDataDict:[String: CLLocation] = ["lastLocation": lastLocation]
             NotificationCenter.default.post(name: .XOZLocationManagerDidUpdateLocations, object: nil, userInfo: locationDataDict)
             
-            // update regions monitoring if needed
-            self.updateRegionsToMonitor()
+            if self.wayToMonitorRegions == .iOSRegionsMonitoring {
+                // update regions monitoring if needed
+                self.updateRegionsToMonitor()
+            } else {
+                // find out is this location inside of a region
+                if var regionsToMonitor = self.allRegionsToMonitor {
+                    // sort all given regions by distance to last known location to start with the neares one
+                    // but maybe we have differences in radius, so we calculate the distance to neares radius
+                    regionsToMonitor.sort(by: {
+                        CLLocation(latitude: $0.center.latitude, longitude: $0.center.longitude).distance(from:lastLocation)-$0.radius < CLLocation(latitude: $1.center.latitude, longitude: $1.center.longitude).distance(from:lastLocation)-$1.radius
+                    })
+                    
+                    // now check is this new location inside of a region
+                    for region in regionsToMonitor {
+                        if let regionInfo = self.dictRegionsCurrentlyTryToDetermineState[region.identifier] {
+                            regionInfo.course = self.lastKnownLocation?.course
+                            regionInfo.speed = self.lastKnownLocation?.speed
+                            self.dictRegionsCurrentlyTryToDetermineState[region.identifier] = regionInfo
+                        } else {
+                            let regionInfo:RegionInfo = RegionInfo()
+                            regionInfo.course = self.lastKnownLocation?.course
+                            regionInfo.speed = self.lastKnownLocation?.speed
+                            self.dictRegionsCurrentlyTryToDetermineState[region.identifier] = regionInfo
+                        }
+                        self.locationManager.requestState(for: region)
+                    }
+                }
+            }
         }
     }
     
@@ -296,14 +331,22 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
     // if shouldMonitorForRegions is true, this region will be registered at OS, else only stored for later use
     public func addRegionsToMonitor(regions: [CLCircularRegion]) {
         self.allRegionsToMonitor?.append(contentsOf: regions)
-        self.tryToUpdateRegionsToMonitor()
+        self.startRegionMonitoring()
     }
 
     // add a new region which you want to monitor
     // if shouldMonitorForRegions is true, this region will be registered at OS, else only stored for later use
     public func addRegionToMonitor(region: CLCircularRegion){
         self.allRegionsToMonitor?.append(region)
-        self.tryToUpdateRegionsToMonitor()
+        self.startRegionMonitoring()
+    }
+    
+    func startRegionMonitoring() {
+        if (self.wayToMonitorRegions == .iOSRegionsMonitoring) {
+            self.tryToUpdateRegionsToMonitor()
+        } else {
+        self.startUpdatingLocationFor(authType: .always)
+        }
     }
     
     // removes a special region from the array which holds all regions which are to monitor
@@ -312,7 +355,7 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
            self.allRegionsToMonitor?.remove(at: index)
             // @TODO: stop significant location changes or updating locations when no more is needed
         }
-        self.tryToUpdateRegionsToMonitor()
+        self.startRegionMonitoring()
     }
     
     
@@ -395,9 +438,13 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
     // ATTENTION: this stops the monitoring off all regions which was registered with a CLLocationManager instance (not only this)
     private func stopMonitoringAllRegions()
     {
-        for region in locationManager.monitoredRegions{
-            self.stopMonitoringRegion(region: region)
-            log("XOZLocationManager: stoped monitoring for region \(region)")
+        if self.wayToMonitorRegions == .iOSRegionsMonitoring {
+            for region in locationManager.monitoredRegions{
+                self.stopMonitoringRegion(region: region)
+                log("XOZLocationManager: stoped monitoring for region \(region)")
+            }
+        } else {
+            self.stopUpdatingLocation()
         }
     }
 
@@ -406,6 +453,7 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
         log("didEnterRegion \(region.debugDescription )")
         
         // scream it out to the world that we entered a region
+        // TODO: add course and speed information if available
         self.delegate?.xozLocationManager(self, didEnterRegion: region)
         let regionDataDict:[String: CLRegion] = ["region": region]
         NotificationCenter.default.post(name: .XOZLocationManagerDidEnterRegion, object: nil, userInfo: regionDataDict)
@@ -413,6 +461,25 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
     
     public func locationManager(_ manager: CLLocationManager, didDetermineState state: CLRegionState, for region: CLRegion) {
         log("didDetermineState for \(region.debugDescription ) new state \(state.rawValue)")
+        
+        //get latest known state of region
+        if let regionInfo = self.dictRegionsCurrentlyTryToDetermineState[region.identifier] {
+            if regionInfo.state != state && state == .inside {
+                regionInfo.state = state
+                // @TODO: add detection for exit region
+                // @TODO: remove from dict when exited
+                
+                self.delegate?.xozLocationManager(self, didEnterRegion: region)
+                var regionDataDict:Dictionary<String,Any> = [:]
+                regionDataDict["region"] = region
+                regionDataDict["speed"] = regionInfo.speed
+                regionDataDict["course"] = regionInfo.course
+                NotificationCenter.default.post(name: .XOZLocationManagerDidEnterRegion, object: nil, userInfo: regionDataDict)
+            }
+
+            
+        }
+        
     }
     
     public func locationManager(_ manager: CLLocationManager, didExitRegion region: CLRegion) {
@@ -467,4 +534,11 @@ public extension Notification.Name {
     static let XOZLocationManagerDidExitRegion = Notification.Name("XOZLocationManagerDidExitRegion")
     static let XOZLocationManagerMonitoringDidFailed = Notification.Name("XOZLocationManagerMonitoringDidFailed")
 
+}
+
+
+public class RegionInfo {
+    public var state:CLRegionState = .unknown
+    public var speed:CLLocationSpeed?
+    public var course:CLLocationDirection?
 }
