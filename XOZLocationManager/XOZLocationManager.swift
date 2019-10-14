@@ -287,7 +287,7 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
                                     // let us update the new state
                                     checkedRegion.state = .inside
                                     // let us send out the notification
-                                    self.sendLocationDidEnterRegion(location: lastLocation, region: region)
+                                    self.sendLocationDidEnterRegion(region: region, location: lastLocation)
                                 } else {
                                     // before it also was inside, so here we nothing need to do, status has not changed
                                 }
@@ -299,7 +299,7 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
                                 self.dictRegionsCheckedState[region.identifier] = regionInfo
                                 
                                 // location is inside region, so scream it out to the world
-                                self.sendLocationDidEnterRegion(location: lastLocation, region: region)
+                                self.sendLocationDidEnterRegion( region: region, location: lastLocation)
                             }
                         } else {
                             //location is not inside region
@@ -312,7 +312,7 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
                                     // let us update the new state
                                     checkedRegion.state = .outside
                                     // let us send out the notification
-                                    self.sendLocationDidExitRegion(location: lastLocation, region: region)
+                                    self.sendLocationDidExitRegion(region: region, location: lastLocation)
                                 } else {
                                     // before it also was outside, so here we nothing need to do, status has not changed
                                 }
