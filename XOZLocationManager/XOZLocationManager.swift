@@ -145,9 +145,9 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
     private var wantsToStartSignificantLocationChanges = false
     private var isSignificantLocationChangesActive = false
     
-    /// if WayToMonitorRegions.locationUpdates is active and we got a location update we try find out are we inside or not
-    /// for that we need to save to latest/current state and the speed and ourse information
-    private var dictRegionsCurrentlyTryToDetermineState:Dictionary<String,RegionInfo> = [:]
+    /// For the case of WayToMinotRegions == locationUpdates here we save the latest known CLRegionState to determine
+    /// is the region inside or outside of current location
+    private var dictRegionsCheckedState:Dictionary<String,RegionInfo> = [:]
 
     // enums
     public enum Authorization {
@@ -269,24 +269,71 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
                         CLLocation(latitude: $0.center.latitude, longitude: $0.center.longitude).distance(from:lastLocation)-$0.radius < CLLocation(latitude: $1.center.latitude, longitude: $1.center.longitude).distance(from:lastLocation)-$1.radius
                     })
                     
-                    // now check is this new location inside of a region
+                    // now check is this new location inside/outside of a region
                     for region in regionsToMonitor {
-                        if let regionInfo = self.dictRegionsCurrentlyTryToDetermineState[region.identifier] {
-                            regionInfo.course = self.lastKnownLocation?.course
-                            regionInfo.speed = self.lastKnownLocation?.speed
-                            self.dictRegionsCurrentlyTryToDetermineState[region.identifier] = regionInfo
+                        // check whether distance from current position to region position is equal or smaller than radius
+                        // if YES, than i must be inside
+                        
+                        // distance
+                        let distance = CLLocation(latitude: region.center.latitude, longitude: region.center.longitude).distance(from: lastLocation);
+                        if distance < region.radius {
+                            // location is inside of region
+                            // do we ever have checked a location for this region ?
+                            if let checkedRegion = self.dictRegionsCheckedState[region.identifier] {
+                                // yes we have checked this region before
+                                // so let us check now the state
+                                if checkedRegion.state != CLRegionState.inside {
+                                    // before it was not inside, now it is inside
+                                    // let us update the new state
+                                    checkedRegion.state = .inside
+                                    // let us send out the notification
+                                    self.sendLocationDidEnterRegion(location: lastLocation, region: region)
+                                } else {
+                                    // before it also was inside, so here we nothing need to do, status has not changed
+                                }
+                            } else {
+                                // we never checked this region for a location
+                                // so let us create new regionInfo and add them to the dict
+                                let regionInfo:RegionInfo = RegionInfo()
+                                regionInfo.state = .inside
+                                self.dictRegionsCheckedState[region.identifier] = regionInfo
+                                
+                                // location is inside region, so scream it out to the world
+                                self.sendLocationDidEnterRegion(location: lastLocation, region: region)
+                            }
                         } else {
-                            let regionInfo:RegionInfo = RegionInfo()
-                            regionInfo.course = self.lastKnownLocation?.course
-                            regionInfo.speed = self.lastKnownLocation?.speed
-                            self.dictRegionsCurrentlyTryToDetermineState[region.identifier] = regionInfo
+                            //location is not inside region
+                            // do we ever have checked a location for this region ?
+                            if let checkedRegion = self.dictRegionsCheckedState[region.identifier] {
+                                // yes we have checked this region before
+                                // so let us check now the state
+                                if checkedRegion.state == CLRegionState.inside {
+                                    // before it was inside, now it's outside
+                                    // let us update the new state
+                                    checkedRegion.state = .outside
+                                    // let us send out the notification
+                                    self.sendLocationDidExitRegion(location: lastLocation, region: region)
+                                } else {
+                                    // before it also was outside, so here we nothing need to do, status has not changed
+                                }
+                            } else {
+                                // we never checked this region for a location
+                                // so let us create new regionInfo and add them to the dict
+                                let regionInfo:RegionInfo = RegionInfo()
+                                regionInfo.state = .outside
+                                self.dictRegionsCheckedState[region.identifier] = regionInfo
+                                // nothing more is to do, it's first time we check for this region and it's
+                                // outside, so in this case we don't have the case tha we could say
+                                // didExitRegion
+                            }
                         }
-                        self.locationManager.requestState(for: region)
                     }
                 }
             }
         }
     }
+    
+   
     
     public func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
         log("ERROR: didFailWithError (\(error.localizedDescription)")
@@ -447,6 +494,31 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
             self.stopUpdatingLocation()
         }
     }
+    
+    private func sendLocationDidEnterRegion(location:CLLocation, region:CLCircularRegion) {
+        
+        // @TODO: also inform delegate
+        
+        var regionDataDict:Dictionary<String,Any> = [:]
+        regionDataDict["region"] = region
+        regionDataDict["speed"] = location.speed
+        regionDataDict["course"] = location.course
+        NotificationCenter.default.post(name: .XOZLocationManagerDidEnterRegion, object: nil, userInfo: regionDataDict)
+        
+    }
+    
+    private func sendLocationDidExitRegion(location:CLLocation, region:CLCircularRegion) {
+        
+        // @TODO: also inform delegate
+        
+        var regionDataDict:Dictionary<String,Any> = [:]
+        regionDataDict["region"] = region
+        regionDataDict["speed"] = location.speed
+        regionDataDict["course"] = location.course
+        NotificationCenter.default.post(name: .XOZLocationManagerDidExitRegion, object: nil, userInfo: regionDataDict)
+        
+    }
+
 
     
     public func locationManager(_ manager: CLLocationManager, didEnterRegion region:CLRegion) {
@@ -461,26 +533,6 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
     
     public func locationManager(_ manager: CLLocationManager, didDetermineState state: CLRegionState, for region: CLRegion) {
         log("didDetermineState for \(region.debugDescription ) new state \(state.rawValue)")
-        
-        //get latest known state of region
-        if let regionInfo = self.dictRegionsCurrentlyTryToDetermineState[region.identifier] {
-            if regionInfo.state != state && state == .inside {
-                regionInfo.state = state
-                // @TODO: add detection for exit region
-                // @TODO: remove from dict when exited
-                // @TODO add also for delegates
-                
-                self.delegate?.xozLocationManager(self, didEnterRegion: region)
-                var regionDataDict:Dictionary<String,Any> = [:]
-                regionDataDict["region"] = region
-                regionDataDict["speed"] = regionInfo.speed
-                regionDataDict["course"] = regionInfo.course
-                NotificationCenter.default.post(name: .XOZLocationManagerDidEnterRegion, object: nil, userInfo: regionDataDict)
-            }
-
-            
-        }
-        
     }
     
     public func locationManager(_ manager: CLLocationManager, didExitRegion region: CLRegion) {
@@ -495,17 +547,10 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
     
     public func locationManager(_ manager: CLLocationManager, didStartMonitoringFor region: CLRegion) {
         log("didStartMonitoringFor \(region.debugDescription )")
-        
-        #if DEBUG
-        if self.logLevel == .verbose {
-            // would be intresting to know how the current state ie
-            self.locationManager.requestState(for: region)
-        }
-        #endif
     }
     
     public func locationManager(_ manager: CLLocationManager, monitoringDidFailFor region: CLRegion?, withError error: Error) {
-        log("ERROR: monitoringDidFailFor \(region.debugDescription ) (\(error.localizedDescription)")
+        log("ERROR: monitoringDidFailFor \(String(describing: region?.description) ) ")
         
         if let tRegion = region {
             self.delegate?.xozLocationManager(self, monitoringDidFailedFor: tRegion, withError: error)
