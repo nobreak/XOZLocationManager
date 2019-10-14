@@ -13,8 +13,8 @@ import MapKit
 
 public protocol XOZLocationManagerDelegate {
     func xozLocationManager(_ manager: XOZLocationManager, didUpdateLocations locations: [CLLocation])
-    func xozLocationManager(_ manager: XOZLocationManager, didEnterRegion region:CLRegion)
-    func xozLocationManager(_ manager: XOZLocationManager, didExitRegion region:CLRegion)
+    func xozLocationManager(_ manager: XOZLocationManager, didEnterRegion region:CLRegion, speed:CLLocationSpeed, course:CLLocationDirection)
+    func xozLocationManager(_ manager: XOZLocationManager, didExitRegion region:CLRegion, speed:CLLocationSpeed, course:CLLocationDirection)
     func xozLocationManager(_ manager: XOZLocationManager, monitoringDidFailedFor region:CLRegion, withError error: Error)
 
 }
@@ -22,8 +22,8 @@ public protocol XOZLocationManagerDelegate {
 // optionals delegate methods
 public extension XOZLocationManagerDelegate {
     // region monitoring is optional
-    func xozLocationManager(_ manager: XOZLocationManager, didEnterRegion region:CLRegion) {}
-    func xozLocationManager(_ manager: XOZLocationManager, didExitRegion region:CLRegion) {}
+    func xozLocationManager(_ manager: XOZLocationManager, didEnterRegion region:CLRegion, speed:CLLocationSpeed, course:CLLocationDirection) {}
+    func xozLocationManager(_ manager: XOZLocationManager, didExitRegion region:CLRegion, speed:CLLocationSpeed, course:CLLocationDirection) {}
     func xozLocationManager(_ manager: XOZLocationManager, monitoringDidFailedFor region:CLRegion, withError error: Error) {}
 }
 
@@ -495,40 +495,59 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
         }
     }
     
-    private func sendLocationDidEnterRegion(location:CLLocation, region:CLCircularRegion) {
+    /**
+     */
+    private func sendLocationDidEnterRegion(region:CLRegion, location:CLLocation? ) {
+        log("didEnterRegion \(region.description )")
         
-        // @TODO: also inform delegate
+        var locationSpeed: CLLocationSpeed = -1;
+        var locationCourse: CLLocationDirection = -1;
         
+        if let loc = location {
+            locationSpeed = loc.speed
+            locationCourse = loc.course
+        }
+        
+        // inform the delegate
+        self.delegate?.xozLocationManager(self, didEnterRegion: region, speed: locationSpeed, course:locationCourse )
+        
+        // send out notification
         var regionDataDict:Dictionary<String,Any> = [:]
         regionDataDict["region"] = region
-        regionDataDict["speed"] = location.speed
-        regionDataDict["course"] = location.course
+        regionDataDict["speed"] = locationSpeed
+        regionDataDict["course"] = locationCourse
         NotificationCenter.default.post(name: .XOZLocationManagerDidEnterRegion, object: nil, userInfo: regionDataDict)
         
     }
     
-    private func sendLocationDidExitRegion(location:CLLocation, region:CLCircularRegion) {
+    /**
+     */
+    private func sendLocationDidExitRegion(region:CLRegion, location:CLLocation?) {
+        log("didEnterRegion \(region.description )")
         
-        // @TODO: also inform delegate
+        var locationSpeed: CLLocationSpeed = -1;
+        var locationCourse: CLLocationDirection = -1;
         
+        if let loc = location {
+            locationSpeed = loc.speed
+            locationCourse = loc.course
+        }
+        
+        // inform the delegate
+        self.delegate?.xozLocationManager(self, didExitRegion: region, speed: locationSpeed, course:locationCourse )
+        
+        // send out notification
         var regionDataDict:Dictionary<String,Any> = [:]
         regionDataDict["region"] = region
-        regionDataDict["speed"] = location.speed
-        regionDataDict["course"] = location.course
+        regionDataDict["speed"] = locationSpeed
+        regionDataDict["course"] = locationCourse
         NotificationCenter.default.post(name: .XOZLocationManagerDidExitRegion, object: nil, userInfo: regionDataDict)
-        
     }
 
 
     
     public func locationManager(_ manager: CLLocationManager, didEnterRegion region:CLRegion) {
-        log("didEnterRegion \(region.debugDescription )")
-        
-        // scream it out to the world that we entered a region
-        // TODO: add course and speed information if available
-        self.delegate?.xozLocationManager(self, didEnterRegion: region)
-        let regionDataDict:[String: CLRegion] = ["region": region]
-        NotificationCenter.default.post(name: .XOZLocationManagerDidEnterRegion, object: nil, userInfo: regionDataDict)
+        self.sendLocationDidEnterRegion(region: region, location: nil)
     }
     
     public func locationManager(_ manager: CLLocationManager, didDetermineState state: CLRegionState, for region: CLRegion) {
@@ -536,14 +555,9 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
     }
     
     public func locationManager(_ manager: CLLocationManager, didExitRegion region: CLRegion) {
-        log("didExitRegion \(region.debugDescription )")
-        
-        // scream it out to the world that we leaved a region
-        self.delegate?.xozLocationManager(self, didExitRegion: region)
-        let regionDataDict:[String: CLRegion] = ["region": region]
-        NotificationCenter.default.post(name: .XOZLocationManagerDidExitRegion, object: nil, userInfo: regionDataDict)
-
+        self.sendLocationDidExitRegion(region: region, location: nil)
     }
+    
     
     public func locationManager(_ manager: CLLocationManager, didStartMonitoringFor region: CLRegion) {
         log("didStartMonitoringFor \(region.debugDescription )")
