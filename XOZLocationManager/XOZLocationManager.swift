@@ -140,6 +140,9 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
     
     
     private var lastKnownLocation : CLLocation?
+    #if DEBUG
+        private var previousLocation : CLLocation?
+    #endif
     private var wantsToStartUpdateLocation = false
     private var isUpdatingLocationActive = false
     private var wantsToStartSignificantLocationChanges = false
@@ -249,6 +252,10 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
     public func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         
         if let lastLocation = locations.last {
+            #if DEBUG
+                self.previousLocation = self.lastKnownLocation
+            #endif
+            
             self.lastKnownLocation = lastLocation
             log("latest known location: \(lastLocation)")
             
@@ -506,6 +513,17 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
         if let loc = location {
             locationSpeed = loc.speed
             locationCourse = loc.course
+            
+            #if (DEBUG && targetEnvironment(simulator))
+            // at simulator we don't have course information, se we calculate the course base on previous location und current one
+            if let prevLoc = self.previousLocation {
+                locationCourse = prevLoc.getBearingTo(location: loc)
+//                if locationCourse < 0 {
+//                    locationCourse = locationCourse + 360
+//                }
+            }
+            #endif
+
         }
         
         // inform the delegate
@@ -516,6 +534,7 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
         regionDataDict["region"] = region
         regionDataDict["speed"] = locationSpeed
         regionDataDict["course"] = locationCourse
+        regionDataDict["location"] = location
         NotificationCenter.default.post(name: .XOZLocationManagerDidEnterRegion, object: nil, userInfo: regionDataDict)
         
     }
