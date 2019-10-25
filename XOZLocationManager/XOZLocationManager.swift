@@ -399,7 +399,7 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
         if (self.wayToMonitorRegions == .iOSRegionsMonitoring) {
             self.tryToUpdateRegionsToMonitor()
         } else {
-        self.startUpdatingLocationFor(authType: .always)
+            self.startUpdatingLocationFor(authType: .always)
         }
     }
     
@@ -407,10 +407,36 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
     public func removeRegionToMonitor(region: CLCircularRegion) {
         if let index = self.allRegionsToMonitor?.firstIndex(of: region) {
            self.allRegionsToMonitor?.remove(at: index)
-            // @TODO: stop significant location changes or updating locations when no more is needed
+           
+            if self.allRegionsToMonitor?.count == 0 {
+                self.switchOffRegionMonitoringServices()
+            }
         }
-        self.startRegionMonitoring()
+        self.startRegionMonitoring() // maybe we need to update regions again
     }
+    
+    private func switchOffRegionMonitoringServices()
+    {
+        if (self.wayToMonitorRegions == .iOSRegionsMonitoring) {
+            // @TODO needs to be testet
+            if (self.wayToDetermineNearestRegions == .significantLocationChanges){
+                self.locationManager.stopMonitoringSignificantLocationChanges()
+            } else if (self.wayToDetermineNearestRegions == .locationUpdates) {
+                self.locationManager.stopUpdatingLocation()
+            }
+        } else if (self.wayToMonitorRegions == .locationUpdates ) {
+            self.locationManager.stopUpdatingLocation()
+        }
+    }
+    
+    
+    // removes a special region from the array which holds all regions which are to monitor
+    public func removeAllRegionsToMonitor() {
+        self.allRegionsToMonitor?.removeAll()
+        self.switchOffRegionMonitoringServices()
+        self.stopMonitoringAllRegions()
+    }
+
     
     
     // this request to get the latest known location, it end's in didUpdateLocations, which calls updateRegionsToMonitor()
@@ -508,13 +534,13 @@ public class XOZLocationManager: NSObject, CLLocationManagerDelegate {
         log("didEnterRegion \(region.description )")
         
         var locationSpeed: CLLocationSpeed = -1;
-        var locationCourse: CLLocationDirection = -1;
+        var locationCourse: CLLocationDirection = -999;
         
         if let loc = location {
             locationSpeed = loc.speed
             locationCourse = loc.course
             
-            #if (DEBUG && targetEnvironment(simulator))
+            #if (DEBUG ) //&& targetEnvironment(simulator))
             // at simulator we don't have course information, se we calculate the course base on previous location und current one
             if let prevLoc = self.previousLocation {
                 locationCourse = prevLoc.getBearingTo(location: loc)
