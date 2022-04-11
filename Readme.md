@@ -3,8 +3,6 @@
 # XOZLocationManager 
 
 This is a CLLocationManager based location manager for your project.
-Currently they are 3 main features inside:
-
 
 Currently they are 4 main features inside:
 
